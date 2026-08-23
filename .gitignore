@@ -1,0 +1,17 @@
+# Local virtualenv (1.2GB, never commit)
+venv/
+__pycache__/
+*.pyc
+
+# Secrets — holds live Deepgram/Sarvam keys
+.env
+
+# Local state and sample data
+chroma_db/
+calls/
+results/
+kb/
+jamie.mp3
+
+.DS_Store
+.gstack/

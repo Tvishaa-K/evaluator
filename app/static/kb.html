@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Base · Voice Agent Evaluator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d2e;--surface2:#212438;
+  --border:#2a2d42;--text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --accent:#6366f1;--accent-bg:rgba(99,102,241,.12);--accent-border:rgba(99,102,241,.3);
+  --green:#10b981;--green-bg:rgba(16,185,129,.1);--green-border:rgba(16,185,129,.3);
+  --yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.1);--yellow-border:rgba(245,158,11,.3);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);--red-border:rgba(239,68,68,.3);
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.hdr-logo{width:32px;height:32px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hdr-title{font-size:16px;font-weight:600}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:4px;margin-left:24px}
+.nav a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;padding:6px 12px;border-radius:6px;transition:all .1s}
+.nav a:hover{color:var(--text);background:var(--surface2)}
+.nav a.active{color:var(--accent);background:var(--accent-bg)}
+main{max-width:860px;margin:0 auto;padding:28px 32px}
+.page-title{font-size:18px;font-weight:600;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+/* ── Warning banner ── */
+.warn-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);color:var(--yellow);border-radius:8px;padding:12px 16px;font-size:13px;font-weight:500;margin-bottom:20px}
+/* ── Dropzone ── */
+.dropzone{background:var(--surface);border:2px dashed var(--border);border-radius:12px;padding:38px 24px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:14px}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:var(--accent-bg)}
+.dz-icon{font-size:30px;margin-bottom:10px}
+.dz-main{font-size:15px;font-weight:600;margin-bottom:4px}
+.dz-hint{font-size:12px;color:var(--muted)}
+/* ── Mode toggle ── */
+.upload-controls{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:28px;flex-wrap:wrap}
+.mode-wrap{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.mode-toggle{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.mode-btn{background:none;border:none;color:var(--muted);padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .1s}
+.mode-btn.active{background:var(--accent-bg);color:var(--accent)}
+.mode-desc{font-size:12px;color:var(--dim)}
+.status-msg{font-size:12px;font-weight:600}
+.status-msg.ok{color:var(--green)}
+.status-msg.err{color:var(--red)}
+.status-msg.busy{color:var(--accent)}
+/* ── File table ── */
+.tbl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tbl-title{font-size:14px;font-weight:600}
+.tbl-count{font-size:12px;color:var(--muted)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface2);padding:11px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:13px 16px;vertical-align:middle}
+.fname{font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:13px;color:var(--accent);font-weight:500}
+.empty{text-align:center;padding:32px 20px;color:var(--dim);font-size:13px}
+.danger-btn{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .1s}
+.danger-btn:hover{background:var(--red);color:#fff}
+.mini-spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <div class="hdr-logo">🎙</div>
+    <div>
+      <div class="hdr-title">Voice Agent Evaluator</div>
+      <div class="hdr-sub">Loan Servicing · Quality Assurance</div>
+    </div>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/upload">Upload Calls</a>
+      <a href="/kb-manager" class="active">Knowledge Base</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">Knowledge Base</div>
+  <div class="page-sub">Upload the documents your agents' claims should be fact-checked against. Every processed call has its factual claims (rates, fees, timelines, policies) verified against whatever is loaded here.</div>
+
+  <div id="empty-warning" class="warn-banner" style="display:none">⚠&ensp;The knowledge base is empty. Fact-checking is skipped until you upload documents — calls will still be scored, but without claim verification.</div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dz-icon">📚</div>
+    <div class="dz-main">Drop knowledge base files here or click to browse</div>
+    <div class="dz-hint">PDF · Markdown · TXT — multiple files allowed</div>
+  </div>
+  <input type="file" id="file-input" accept=".pdf,.md,.txt" multiple hidden>
+
+  <div class="upload-controls">
+    <div class="mode-wrap">
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="append">Append</button>
+        <button class="mode-btn" data-mode="replace">Replace</button>
+      </div>
+      <span class="mode-desc" id="mode-desc">New files are added to the existing knowledge base.</span>
+    </div>
+    <span class="status-msg" id="status-msg"></span>
+  </div>
+
+  <div class="tbl-header">
+    <span class="tbl-title">Loaded Documents</span>
+    <span class="tbl-count" id="tbl-count"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>File</th><th>Chunks</th><th>Uploaded</th></tr></thead>
+      <tbody id="tbl-body"><tr><td colspan="3"><div class="empty">Loading…</div></td></tr></tbody>
+    </table>
+  </div>
+
+  <button class="danger-btn" id="clear-btn">Clear knowledge base</button>
+</main>
+
+<script>
+function h(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+const ALLOWED = ['.pdf','.md','.txt'];
+let mode = 'append';
+let busy = false;
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const statusMsg = document.getElementById('status-msg');
+
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    mode = btn.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b===btn));
+    document.getElementById('mode-desc').textContent = mode==='append'
+      ? 'New files are added to the existing knowledge base.'
+      : 'Uploading wipes the current knowledge base and starts fresh.';
+  });
+});
+
+dropzone.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', ()=>{uploadFiles([...fileInput.files]); fileInput.value=''});
+dropzone.addEventListener('dragover', e=>{e.preventDefault(); dropzone.classList.add('dragover')});
+dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  uploadFiles([...e.dataTransfer.files]);
+});
+
+function setStatus(text, cls){
+  statusMsg.textContent = text;
+  statusMsg.className = 'status-msg '+(cls||'');
+}
+
+async function uploadFiles(files){
+  if(busy || !files.length) return;
+  const bad = files.find(f=>!ALLOWED.includes('.'+f.name.split('.').pop().toLowerCase()));
+  if(bad){setStatus(`Unsupported file: ${bad.name}`, 'err'); return}
+
+  busy = true;
+  statusMsg.innerHTML = '<span class="mini-spin"></span>Ingesting '+files.length+' file'+(files.length>1?'s':'')+'…';
+  statusMsg.className = 'status-msg busy';
+
+  try{
+    const fd = new FormData();
+    files.forEach(f=>fd.append('files', f));
+    fd.append('mode', mode);
+    const resp = await fetch('/kb/upload', {method:'POST', body:fd});
+    if(!resp.ok){
+      let detail = 'HTTP '+resp.status;
+      try{detail = (await resp.json()).detail || detail}catch(e){}
+      throw new Error(detail);
+    }
+    const data = await resp.json();
+    const chunks = data.ingested.reduce((a,i)=>a+i.chunk_count,0);
+    setStatus(`✓ Ingested ${data.ingested.length} file(s), ${chunks} chunks`, 'ok');
+  }catch(err){
+    setStatus('✕ '+err.message, 'err');
+  }
+  busy = false;
+  loadKb();
+}
+
+async function loadKb(){
+  try{
+    const resp = await fetch('/kb');
+    const data = await resp.json();
+    const files = data.files||[];
+    const tbody = document.getElementById('tbl-body');
+
+    document.getElementById('tbl-count').textContent = `${files.length} file${files.length!==1?'s':''} · ${data.total_chunks} chunks`;
+    document.getElementById('empty-warning').style.display = data.total_chunks===0 ? 'block' : 'none';
+
+    if(!files.length){
+      tbody.innerHTML = data.total_chunks>0
+        ? '<tr><td colspan="3"><div class="empty">'+data.total_chunks+' chunks loaded from before file tracking existed (the original seeded KB). Upload in Replace mode to take over.</div></td></tr>'
+        : '<tr><td colspan="3"><div class="empty">No documents loaded.</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = files.map(f=>`<tr>
+      <td><span class="fname">${h(f.filename)}</span></td>
+      <td>${f.chunk_count}</td>
+      <td>${h(f.uploaded_at)}</td>
+    </tr>`).join('');
+  }catch(err){
+    document.getElementById('tbl-body').innerHTML = `<tr><td colspan="3"><div class="empty">Error: ${h(err.message)}</div></td></tr>`;
+  }
+}
+
+document.getElementById('clear-btn').addEventListener('click', async ()=>{
+  if(!confirm('Clear the entire knowledge base? Fact-checking will be disabled until new documents are uploaded.')) return;
+  setStatus('Clearing…', 'busy');
+  try{
+    const resp = await fetch('/kb', {method:'DELETE'});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    setStatus('✓ Knowledge base cleared', 'ok');
+  }catch(err){
+    setStatus('✕ '+err.message, 'err');
+  }
+  loadKb();
+});
+
+loadKb();
+</script>
+</body>
+</html>

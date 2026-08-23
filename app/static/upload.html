@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Calls · Voice Agent Evaluator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d2e;--surface2:#212438;
+  --border:#2a2d42;--text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --accent:#6366f1;--accent-bg:rgba(99,102,241,.12);--accent-border:rgba(99,102,241,.3);
+  --green:#10b981;--green-bg:rgba(16,185,129,.1);--green-border:rgba(16,185,129,.3);
+  --yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.1);--yellow-border:rgba(245,158,11,.3);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);--red-border:rgba(239,68,68,.3);
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.hdr-logo{width:32px;height:32px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hdr-title{font-size:16px;font-weight:600}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:4px;margin-left:24px}
+.nav a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;padding:6px 12px;border-radius:6px;transition:all .1s}
+.nav a:hover{color:var(--text);background:var(--surface2)}
+.nav a.active{color:var(--accent);background:var(--accent-bg)}
+main{max-width:860px;margin:0 auto;padding:28px 32px}
+.page-title{font-size:18px;font-weight:600;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+/* ── Dropzone ── */
+.dropzone{background:var(--surface);border:2px dashed var(--border);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:24px}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:var(--accent-bg)}
+.dz-icon{font-size:34px;margin-bottom:12px}
+.dz-main{font-size:15px;font-weight:600;margin-bottom:4px}
+.dz-hint{font-size:12px;color:var(--muted)}
+/* ── Queue ── */
+.q-title{font-size:14px;font-weight:600;margin-bottom:12px}
+.q-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px}
+.q-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.q-name{font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:13px;font-weight:500}
+.q-status{font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.st-queued{color:var(--dim)}
+.st-processing{color:var(--accent)}
+.st-done{color:var(--green)}
+.st-failed{color:var(--red)}
+.mini-spin{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.q-result{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.q-score{font-size:16px;font-weight:700}
+.c-g{color:var(--green)}.c-y{color:var(--yellow)}.c-r{color:var(--red)}
+.q-badge{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600}
+.q-badge.warn{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border)}
+.q-badge.crit{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.q-link{color:var(--accent);text-decoration:none;font-weight:600}
+.q-link:hover{text-decoration:underline}
+.q-error{margin-top:10px;font-size:12px;color:var(--red);background:var(--red-bg);border:1px solid var(--red-border);border-radius:6px;padding:8px 12px}
+.empty{text-align:center;padding:32px 20px;color:var(--dim);font-size:13px}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <div class="hdr-logo">🎙</div>
+    <div>
+      <div class="hdr-title">Voice Agent Evaluator</div>
+      <div class="hdr-sub">Loan Servicing · Quality Assurance</div>
+    </div>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/upload" class="active">Upload Calls</a>
+      <a href="/kb-manager">Knowledge Base</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">Upload Calls</div>
+  <div class="page-sub">Upload any call recording to run the full evaluation pipeline: transcription &amp; speaker diarization (Deepgram), translation to English if needed (Sarvam), dead-air detection, knowledge-base fact-checking, and scoring.</div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dz-icon">📤</div>
+    <div class="dz-main">Drop audio files here or click to browse</div>
+    <div class="dz-hint">MP3 · WAV · M4A · OGG · FLAC · WEBM — batches process in parallel on the server; you can leave this page and come back</div>
+  </div>
+  <input type="file" id="file-input" accept=".mp3,.wav,.m4a,.ogg,.flac,.webm,audio/*" multiple hidden>
+
+  <div class="q-title" id="q-title" style="display:none">Processing Queue</div>
+  <div id="queue"></div>
+</main>
+
+<script>
+function h(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+const ALLOWED = ['.mp3','.wav','.m4a','.ogg','.flac','.webm'];
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const queueEl = document.getElementById('queue');
+
+let jobs = [];
+let uploadError = null;
+const resultCache = {};   // call_id -> result summary
+let staleIds = null;      // jobs already finished when the page opened — hidden
+
+dropzone.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', ()=>{addFiles([...fileInput.files]); fileInput.value=''});
+dropzone.addEventListener('dragover', e=>{e.preventDefault(); dropzone.classList.add('dragover')});
+dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  addFiles([...e.dataTransfer.files]);
+});
+
+async function addFiles(files){
+  if(!files.length) return;
+  const bad = files.find(f=>!ALLOWED.includes('.'+f.name.split('.').pop().toLowerCase()));
+  if(bad){uploadError = `Unsupported format: ${bad.name}`; render(); return}
+  uploadError = null;
+
+  try{
+    const fd = new FormData();
+    files.forEach(f=>fd.append('files', f));
+    const resp = await fetch('/process/batch', {method:'POST', body:fd});
+    if(!resp.ok){
+      let detail = 'HTTP '+resp.status;
+      try{detail = (await resp.json()).detail || detail}catch(e){}
+      throw new Error(detail);
+    }
+  }catch(err){
+    uploadError = err.message;
+  }
+  await refreshJobs();
+}
+
+function scoreCls(score,max){
+  const p = max>0?score/max:0;
+  return p>=.75?'c-g':p>=.5?'c-y':'c-r';
+}
+
+async function refreshJobs(){
+  try{
+    const resp = await fetch('/jobs');
+    let all = (await resp.json()).jobs || [];
+    // First fetch: anything already finished belongs to an older session —
+    // don't resurrect it. Only in-flight jobs and jobs that finish while
+    // this page is open are shown; leaving the page dismisses them.
+    if(staleIds === null){
+      staleIds = new Set(all.filter(j=>j.status==='done'||j.status==='failed').map(j=>j.id));
+    }
+    jobs = all.filter(j=>!staleIds.has(j.id));
+  }catch(e){ /* keep last known state */ }
+
+  // fetch result summaries for newly finished jobs
+  for(const j of jobs){
+    if(j.status==='done' && j.call_id && !(j.call_id in resultCache)){
+      resultCache[j.call_id] = null; // mark in-flight
+      fetch('/results/'+encodeURIComponent(j.call_id))
+        .then(r=>r.ok?r.json():null)
+        .then(data=>{resultCache[j.call_id]=data; render()})
+        .catch(()=>{});
+    }
+  }
+  render();
+}
+
+function render(){
+  document.getElementById('q-title').style.display = (jobs.length||uploadError)?'block':'none';
+
+  let html = uploadError ? `<div class="q-item"><div class="q-error">${h(uploadError)}</div></div>` : '';
+
+  html += jobs.map(j=>{
+    let statusHtml = '';
+    if(j.status==='queued') statusHtml = '<span class="q-status st-queued">Queued</span>';
+    if(j.status==='processing') statusHtml = '<span class="q-status st-processing"><span class="mini-spin"></span>Processing…</span>';
+    if(j.status==='done') statusHtml = '<span class="q-status st-done">✓ Done</span>';
+    if(j.status==='failed') statusHtml = '<span class="q-status st-failed">✕ Failed</span>';
+
+    let body = '';
+    const r = j.call_id ? resultCache[j.call_id] : null;
+    if(j.status==='done' && r){
+      const ev = r.evaluation||{};
+      const lang = r.detected_language||'en';
+      const translated = !!r.original_transcript;
+      body = `<div class="q-result">
+        <span class="q-score ${scoreCls(ev.composite_score, ev.max_possible)}">${ev.composite_score}/${ev.max_possible}</span>
+        <span>Claims checked: <b>${(r.fact_check||{}).claims_checked??0}</b></span>
+        <span>Mismatches: <b>${((r.fact_check||{}).mismatches||[]).length}</b></span>
+        <span class="q-badge">Language: ${h(lang)}${translated?' → en':''}</span>
+        ${(r.fact_check||{}).warning==='no_knowledge_base'?'<span class="q-badge warn">No KB — fact-check skipped</span>':''}
+        ${ev.critical_failure?'<span class="q-badge crit">⚠ Critical failure</span>':''}
+        ${r.diarization_warning?'<span class="q-badge warn">⚠ Single speaker</span>':''}
+        <a class="q-link" href="/#${encodeURIComponent(j.call_id)}">View on dashboard →</a>
+      </div>`;
+    } else if(j.status==='done'){
+      body = `<div class="q-result"><span>Saved as <a class="q-link" href="/#${encodeURIComponent(j.call_id)}">${h(j.call_id)}</a></span></div>`;
+    }
+    if(j.status==='failed'){
+      body = `<div class="q-error">${h(j.error||'Unknown error')}</div>`;
+    }
+
+    return `<div class="q-item">
+      <div class="q-row"><span class="q-name">${h(j.filename)}</span>${statusHtml}</div>
+      ${body}
+    </div>`;
+  }).join('');
+
+  queueEl.innerHTML = html;
+}
+
+refreshJobs();
+setInterval(refreshJobs, 3000);
+</script>
+</body>
+</html>

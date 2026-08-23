@@ -1,0 +1,39 @@
+# Render Blueprint. Optional — the dashboard can do all of this — but keeping it
+# here means the infra is version-controlled alongside the app.
+# Verify `plan` and `region` values against current Render offerings before applying.
+services:
+  - type: web
+    name: evaluator
+    runtime: docker
+    plan: starter          # free instances can't mount a disk and sleep when idle,
+                           # which would kill in-flight pipeline jobs
+    region: singapore      # must match the database region for the internal URL
+    healthCheckPath: /
+    preDeployCommand: alembic upgrade head
+    disk:
+      name: chroma
+      mountPath: /data
+      sizeGB: 1            # chroma_db is ~1MB today; disks can grow but never shrink
+    envVars:
+      - key: CHROMA_PATH
+        value: /data/chroma_db
+      - key: PIPELINE_WORKERS
+        value: "2"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: evaluator-db
+          property: connectionString   # app/db.py normalizes the scheme to +psycopg
+      # Set these in the dashboard; never commit them.
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: BASIC_AUTH_USER
+        sync: false
+      - key: BASIC_AUTH_PASS
+        sync: false
+
+databases:
+  - name: evaluator-db
+    plan: basic-256mb
+    region: singapore

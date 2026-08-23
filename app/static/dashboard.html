@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Agent Evaluator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d2e;--surface2:#212438;
+  --border:#2a2d42;--text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --accent:#6366f1;--accent-bg:rgba(99,102,241,.12);--accent-border:rgba(99,102,241,.3);
+  --green:#10b981;--green-bg:rgba(16,185,129,.1);--green-border:rgba(16,185,129,.3);
+  --yellow:#f59e0b;--yellow-bg:rgba(245,158,11,.1);--yellow-border:rgba(245,158,11,.3);
+  --red:#ef4444;--red-bg:rgba(239,68,68,.1);--red-border:rgba(239,68,68,.3);
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+/* ── Header ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.hdr-logo{width:32px;height:32px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.hdr-title{font-size:16px;font-weight:600}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:4px;margin-left:24px}
+.nav a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;padding:6px 12px;border-radius:6px;transition:all .1s}
+.nav a:hover{color:var(--text);background:var(--surface2)}
+.nav a.active{color:var(--accent);background:var(--accent-bg)}
+.live-badge{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);border-radius:4px;padding:2px 10px;font-size:11px;font-weight:600;letter-spacing:.04em;display:flex;align-items:center;gap:5px}
+.live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ── Main ── */
+main{max-width:1160px;margin:0 auto;padding:28px 32px}
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.stat-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:700;color:var(--text)}
+.stat-value.c-accent{color:var(--accent)}
+.stat-value.c-red{color:var(--red)}
+.stat-value.c-yellow{color:var(--yellow)}
+.stat-value.c-green{color:var(--green)}
+/* ── Table ── */
+.tbl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tbl-title{font-size:14px;font-weight:600}
+.tbl-count{font-size:12px;color:var(--muted)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface2);padding:11px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:13px 16px;vertical-align:middle}
+.call-id{font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:13px;color:var(--accent);font-weight:500}
+/* ── Score bar ── */
+.score-cell{display:flex;align-items:center;gap:10px}
+.score-txt{font-size:13px;font-weight:600;min-width:52px}
+.bar-wrap{flex:1;max-width:110px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
+.c-g{color:var(--green)}.f-g{background:var(--green)}
+.c-y{color:var(--yellow)}.f-y{background:var(--yellow)}
+.c-r{color:var(--red)}.f-r{background:var(--red)}
+.c-dim{color:var(--dim)}.f-dim{background:var(--dim)}
+/* ── Analytics section ── */
+.analytics-section{margin-bottom:28px}
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.an-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.an-card-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px}
+.an-bands{display:flex;gap:10px}
+.an-band{flex:1;text-align:center;padding:12px 8px;border-radius:8px;background:var(--surface2)}
+.an-band-count{font-size:22px;font-weight:700}
+.an-band-label{font-size:11px;color:var(--muted);margin-top:4px}
+.an-flags{display:flex;gap:18px;margin-top:12px;font-size:12px;color:var(--muted)}
+.an-flags b{color:var(--text)}
+.an-dim-row{margin-bottom:11px}
+.an-dim-row:last-child{margin-bottom:0}
+.an-dim-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:12px}
+.an-dim-name{color:var(--text);font-weight:500}
+.an-dim-score{font-weight:600}
+.an-dim-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.an-dim-bar-fill{height:100%;border-radius:3px}
+.an-weak-badge{font-size:10px;color:var(--yellow);background:var(--yellow-bg);border:1px solid var(--yellow-border);border-radius:4px;padding:1px 6px;margin-left:6px}
+.an-verdict-bar{display:flex;gap:2px;height:10px;margin:10px 0}
+.an-verdict-seg{height:100%;border-radius:2px}
+.an-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.an-legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.an-fact-item{font-size:12px;color:var(--muted);padding:7px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px}
+.an-fact-item:first-child{border-top:none}
+.an-empty-sm{font-size:12px;color:var(--dim);padding:6px 0}
+.badge-crit{display:inline-flex;align-items:center;gap:4px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600}
+.badge-warn{display:inline-flex;align-items:center;gap:4px;background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border);border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;margin-left:6px}
+.badge-ok{color:var(--dim);font-size:12px}
+.del-btn{background:none;border:1px solid transparent;color:var(--dim);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;transition:all .1s}
+.del-btn:hover{background:var(--red-bg);border-color:var(--red-border);color:var(--red)}
+/* ── Modal overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:stretch;justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+/* ── Detail panel ── */
+.panel{background:var(--bg);border-left:1px solid var(--border);width:700px;max-width:92vw;display:flex;flex-direction:column;transform:translateX(32px);transition:transform .2s;overflow:hidden}
+.overlay.open .panel{transform:translateX(0)}
+.panel-hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
+.panel-title{font-size:15px;font-weight:600}
+.panel-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.close-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .1s;line-height:1;flex-shrink:0}
+.close-btn:hover{background:var(--border);color:var(--text)}
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.tab{background:none;border:none;color:var(--muted);padding:11px 20px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all .1s;font-family:inherit}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* ── Tab content ── */
+.tab-pane{flex:1;overflow-y:auto;padding:22px;display:none}
+.tab-pane.active{display:block}
+/* ── Scores tab ── */
+.overview-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:14px 18px;margin-bottom:14px}
+.overview-lbl{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.overview-text{font-size:13px;color:var(--text);line-height:1.6}
+.composite-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:24px;margin-bottom:20px}
+.composite-num{font-size:38px;font-weight:700;line-height:1}
+.composite-denom{font-size:20px;color:var(--muted);font-weight:400}
+.composite-lbl{font-size:12px;color:var(--muted);margin-top:4px}
+.composite-pct{font-size:14px;font-weight:600}
+.crit-pill{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600}
+.warn-banner{background:var(--yellow-bg);border:1px solid var(--yellow-border);color:var(--yellow);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:500;margin-bottom:16px}
+.section-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.fraud-item{background:var(--red-bg);border:1px solid var(--red-border);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:6px}
+.dims-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dim-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:13px}
+.dim-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.dim-name{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dim-score{font-size:17px;font-weight:700}
+.dim-bar{height:4px;background:var(--border);border-radius:2px;margin-bottom:7px}
+.dim-bar-fill{height:100%;border-radius:2px}
+.dim-reason{font-size:12px;color:var(--muted);line-height:1.5}
+/* ── Fact check tab ── */
+.fc-summary{font-size:12px;color:var(--muted);margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px}
+.claim-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:13px;margin-bottom:10px}
+.claim-text{font-size:13px;color:var(--text);margin-bottom:8px;font-style:italic;line-height:1.5}
+.verdict{display:inline-flex;align-items:center;gap:4px;border-radius:4px;padding:2px 9px;font-size:11px;font-weight:600;margin-bottom:6px}
+.v-correct{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.v-incorrect{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.v-not_found{background:rgba(100,116,139,.1);color:var(--dim);border:1px solid rgba(100,116,139,.3)}
+.claim-exp{font-size:12px;color:var(--muted);line-height:1.5}
+.kb-fact{font-size:11px;color:var(--dim);margin-top:6px;padding:6px 10px;background:var(--surface2);border-radius:4px;border-left:2px solid var(--border)}
+/* ── Transcript tab ── */
+.lang-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;color:var(--muted);margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px}
+.lang-toggle{background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .1s}
+.lang-toggle:hover{background:var(--accent);color:#fff}
+.chat{display:flex;flex-direction:column;gap:12px}
+.bubble-wrap{display:flex;flex-direction:column}
+.bubble-wrap.agent{align-items:flex-end}
+.bubble-wrap.customer{align-items:flex-start}
+.spk-lbl{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;padding:0 4px}
+.bubble{max-width:78%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.55}
+.b-agent{background:var(--accent);color:#fff;border-radius:12px 12px 4px 12px}
+.b-customer{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:12px 12px 12px 4px}
+.bubble-time{font-size:10px;color:var(--dim);margin-top:3px;padding:0 4px}
+/* ── Processing banner ── */
+.proc-banner{background:var(--surface);border:1px solid var(--accent-border);border-radius:10px;padding:14px 18px;margin-bottom:20px}
+.proc-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.proc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:13px}
+.proc-name{font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:12px}
+.proc-status{font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.st-queued{color:var(--dim)}
+.st-processing{color:var(--accent)}
+.st-failed{color:var(--red)}
+.mini-spin{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+/* ── Empty / loading ── */
+.loading,.empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px}
+.spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <div class="hdr-logo">🎙</div>
+    <div>
+      <div class="hdr-title">Voice Agent Evaluator</div>
+      <div class="hdr-sub">Loan Servicing · Quality Assurance</div>
+    </div>
+    <nav class="nav">
+      <a href="/" class="active">Dashboard</a>
+      <a href="/upload">Upload Calls</a>
+      <a href="/kb-manager">Knowledge Base</a>
+    </nav>
+  </div>
+  <div class="live-badge"><span class="live-dot"></span>Live</div>
+</header>
+
+<main>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Calls</div>
+      <div class="stat-value c-accent" id="s-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Composite Score</div>
+      <div class="stat-value" id="s-avg">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Critical Failures</div>
+      <div class="stat-value c-red" id="s-crit">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Fact-Check Mismatches</div>
+      <div class="stat-value c-yellow" id="s-mm">—</div>
+    </div>
+  </div>
+
+  <div class="tbl-header">
+    <span class="tbl-title">Analytics</span>
+  </div>
+  <div class="analytics-section" id="analytics-section">
+    <div class="loading"><div class="spinner"></div>Loading analytics…</div>
+  </div>
+
+  <div id="proc-banner" style="display:none"></div>
+
+  <div class="tbl-header">
+    <span class="tbl-title">Call Log</span>
+    <span class="tbl-count" id="tbl-count"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Call ID</th>
+          <th>Score</th>
+          <th>Dead Air</th>
+          <th>Mismatches</th>
+          <th>Status</th>
+          <th style="width:44px"></th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body">
+        <tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading calls…</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Detail panel -->
+<div class="overlay" id="overlay">
+  <div class="panel" id="panel">
+    <div class="panel-hdr">
+      <div>
+        <div class="panel-title" id="p-title">Call Detail</div>
+        <div class="panel-meta" id="p-meta"></div>
+      </div>
+      <button class="close-btn" id="close-btn">&#x2715;</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="scores">Scores</button>
+      <button class="tab" data-tab="factcheck">Fact Check</button>
+      <button class="tab" data-tab="transcript">Transcript</button>
+    </div>
+    <div class="tab-pane active" id="tab-scores"></div>
+    <div class="tab-pane" id="tab-factcheck"></div>
+    <div class="tab-pane" id="tab-transcript"></div>
+  </div>
+</div>
+
+<script>
+const DIMS = {
+  resolution_rate:       'Resolution Rate',
+  compliance:            'Compliance',
+  customer_understanding:'Customer Understanding',
+  dead_air:              'Dead Air',
+  fact_checking:         'Fact Checking',
+  data_confirmation:     'Data Confirmation',
+  interruption_handling: 'Interruption Handling',
+  escalation_analysis:   'Escalation Analysis',
+};
+
+function h(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function scoreColor(score, max){
+  if(score===null||score===undefined) return {text:'c-dim',fill:'f-dim'};
+  const p = score/max;
+  if(p>=.75) return {text:'c-g',fill:'f-g'};
+  if(p>=.50) return {text:'c-y',fill:'f-y'};
+  return {text:'c-r',fill:'f-r'};
+}
+
+function fmtTime(s){
+  if(!s) return '0s';
+  const m=Math.floor(s/60), sec=Math.round(s%60);
+  return m>0?`${m}m ${sec}s`:`${sec}s`;
+}
+
+function pct(score,max){return max>0?Math.round(score/max*100):0}
+
+/* ── Stats ── */
+function renderStats(calls){
+  const total = calls.length;
+  document.getElementById('s-total').textContent = total;
+
+  if(total>0){
+    const avg = calls.reduce((a,c)=>a+(c.composite_score/c.max_possible)*100,0)/total;
+    const avgEl = document.getElementById('s-avg');
+    avgEl.textContent = avg.toFixed(1)+'%';
+    avgEl.className = 'stat-value '+(avg>=75?'c-g':avg>=50?'c-y':'c-r');
+  } else {
+    document.getElementById('s-avg').textContent='—';
+  }
+
+  document.getElementById('s-crit').textContent = calls.filter(c=>c.critical_failure).length;
+  document.getElementById('s-mm').textContent   = calls.reduce((a,c)=>a+c.mismatches,0);
+  document.getElementById('tbl-count').textContent = `${total} call${total!==1?'s':''}`;
+}
+
+/* ── Table ── */
+function renderTable(calls){
+  const tbody = document.getElementById('tbl-body');
+  if(!calls.length){
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty">No calls yet — upload one from the Upload Calls page</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = calls.map(c=>{
+    const p   = pct(c.composite_score, c.max_possible);
+    const cls = scoreColor(c.composite_score, c.max_possible);
+    const critHtml = (c.critical_failure ? '<span class="badge-crit">&#x26A0; Critical</span>' : '<span class="badge-ok">—</span>')
+      + (c.diarization_warning ? '<span class="badge-warn">&#x26A0; Speaker ID unreliable</span>' : '');
+    return `<tr data-id="${h(c.call_id)}">
+      <td><span class="call-id">${h(c.call_id)}</span></td>
+      <td><div class="score-cell">
+        <span class="score-txt ${cls.text}">${c.composite_score}/${c.max_possible}</span>
+        <div class="bar-wrap"><div class="bar-fill ${cls.fill}" style="width:${p}%"></div></div>
+      </div></td>
+      <td>${fmtTime(c.dead_air_seconds)}</td>
+      <td>${c.mismatches}</td>
+      <td>${critHtml}</td>
+      <td><button class="del-btn" data-del="${h(c.call_id)}" title="Delete call">&#x1F5D1;</button></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr[data-id]').forEach(row=>{
+    row.addEventListener('click',()=>openDetail(row.dataset.id));
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', async e=>{
+      e.stopPropagation();
+      const id = btn.dataset.del;
+      if(!confirm(`Delete ${id}? This removes the call and its scores permanently.`)) return;
+      try{
+        const resp = await fetch('/results/'+encodeURIComponent(id), {method:'DELETE'});
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        loadResults();
+        loadAnalytics();
+      }catch(err){
+        alert('Delete failed: '+err.message);
+      }
+    });
+  });
+}
+
+/* ── Panel ── */
+function openDetail(callId){
+  const overlay = document.getElementById('overlay');
+  document.getElementById('p-title').textContent = callId;
+  document.getElementById('p-meta').textContent  = 'Loading…';
+
+  // reset tabs to Scores
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='scores'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id==='tab-scores'));
+  document.getElementById('tab-scores').innerHTML     = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+  document.getElementById('tab-factcheck').innerHTML  = '';
+  document.getElementById('tab-transcript').innerHTML = '';
+
+  overlay.classList.add('open');
+
+  fetch('/results/'+encodeURIComponent(callId))
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(data=>{
+      document.getElementById('p-meta').textContent = (data.processed_at ? 'Processed '+data.processed_at : '')
+        + (data.detected_language ? ' · Language: '+data.detected_language : '');
+      renderScores(data);
+      renderFactCheck(data);
+      renderTranscript(data);
+    })
+    .catch(err=>{
+      document.getElementById('tab-scores').innerHTML=`<div class="empty">Error: ${h(err.message)}</div>`;
+    });
+}
+
+function closeDetail(){document.getElementById('overlay').classList.remove('open')}
+
+/* ── Scores tab ── */
+function renderScores(data){
+  const ev = data.evaluation||{};
+  const scores = ev.scores||{};
+  const p = pct(ev.composite_score, ev.max_possible);
+  const cls = scoreColor(ev.composite_score, ev.max_possible);
+
+  let html = '';
+  if(data.diarization_warning === 'single_speaker_detected'){
+    html += `<div class="warn-banner">&#x26A0;&ensp;Only one speaker was detected in this call's audio. AGENT/CUSTOMER labels below may be unreliable &mdash; treat this call's scores with caution.</div>`;
+  }
+  if(data.summary){
+    html += `<div class="overview-box">
+      <div class="overview-lbl">Call Overview</div>
+      <div class="overview-text">${h(data.summary)}</div>
+    </div>`;
+  }
+  html += `<div class="composite-box">
+    <div>
+      <div class="composite-num ${cls.text}">${ev.composite_score}<span class="composite-denom">/${ev.max_possible}</span></div>
+      <div class="composite-lbl">Composite Score &nbsp;·&nbsp; <span class="composite-pct ${cls.text}">${p}%</span></div>
+    </div>
+    ${ev.critical_failure ? '<span class="crit-pill">&#x26A0;&nbsp; Critical Failure</span>' : ''}
+  </div>`;
+
+  const flags = ev.fraud_flags||[];
+  if(flags.length){
+    html += `<div class="section-lbl" style="margin-bottom:8px">Fraud Flags</div>`;
+    html += flags.map(f=>`<div class="fraud-item">&#x2691;&ensp;${h(f)}</div>`).join('');
+    html += `<div style="margin-bottom:20px"></div>`;
+  }
+
+  html += `<div class="section-lbl">Dimension Scores</div><div class="dims-grid">`;
+  for(const [key,label] of Object.entries(DIMS)){
+    const d   = scores[key]||{};
+    const sc  = d.score ?? null;
+    const dcl = scoreColor(sc, 10);
+    const w   = sc!==null ? pct(sc,10) : 0;
+    html += `<div class="dim-card">
+      <div class="dim-hdr">
+        <span class="dim-name">${h(label)}</span>
+        <span class="dim-score ${dcl.text}">${sc!==null ? sc+'/10' : 'N/A'}</span>
+      </div>
+      <div class="dim-bar"><div class="dim-bar-fill ${dcl.fill}" style="width:${w}%"></div></div>
+      <div class="dim-reason">${h(d.reasoning||'')}</div>
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('tab-scores').innerHTML = html;
+}
+
+/* ── Fact check tab ── */
+function renderFactCheck(data){
+  const fc = data.fact_check||{};
+  const results = fc.results||[];
+  const mmCount = (fc.mismatches||[]).length;
+
+  let html = `<div class="fc-summary">Claims checked: <strong>${fc.claims_checked||0}</strong> &nbsp;·&nbsp; Mismatches: <strong>${mmCount}</strong></div>`;
+
+  if(!results.length){
+    html += '<div class="empty">No claims were fact-checked for this call.</div>';
+  } else {
+    results.forEach(r=>{
+      const vc = `v-${r.verdict}`;
+      const vl = r.verdict==='not_found'?'Not Found':r.verdict.charAt(0).toUpperCase()+r.verdict.slice(1);
+      html += `<div class="claim-card">
+        <div class="claim-text">&ldquo;${h(r.claim)}&rdquo;</div>
+        <span class="verdict ${vc}">${vl}</span>
+        <div class="claim-exp">${h(r.explanation)}</div>
+        ${r.kb_fact?`<div class="kb-fact">KB: ${h(r.kb_fact)}</div>`:''}
+      </div>`;
+    });
+  }
+  document.getElementById('tab-factcheck').innerHTML = html;
+}
+
+/* ── Transcript tab ── */
+function bubbleHtml(spk, txt, start){
+  const isAgent = spk==='AGENT';
+  return `<div class="bubble-wrap ${isAgent?'agent':'customer'}">
+    <div class="spk-lbl">${h(spk)}</div>
+    <div class="bubble ${isAgent?'b-agent':'b-customer'}">${h(txt)}</div>
+    ${start!=null?`<div class="bubble-time">${Number(start).toFixed(1)}s</div>`:''}
+  </div>`;
+}
+
+function bubblesFromLabeledText(text){
+  let html = '';
+  (text||'').split('\n').filter(Boolean).forEach(line=>{
+    const m = line.match(/^\[(\w+)\]:\s*(.+)$/);
+    if(m) html += bubbleHtml(m[1], m[2], null);
+  });
+  return html;
+}
+
+function renderTranscript(data, showOriginal){
+  showOriginal = !!showOriginal;
+  const hasOriginal = !!data.original_transcript;
+  let html = '';
+
+  if(hasOriginal){
+    html += `<div class="lang-banner">
+      <span>&#127760; Translated to English from <strong>${h(data.detected_language||'unknown')}</strong> via Sarvam</span>
+      <button class="lang-toggle" id="lang-toggle">${showOriginal?'Show English':'Show original'}</button>
+    </div>`;
+  }
+
+  let chat = '';
+  if(showOriginal && hasOriginal){
+    chat = bubblesFromLabeledText(data.original_transcript);
+  } else {
+    const segs = data.segments||[];
+    if(segs.length){
+      segs.forEach(s=>{chat += bubbleHtml(s.speaker, s.text, s.start)});
+    } else {
+      chat = bubblesFromLabeledText(data.labeled_transcript);
+    }
+  }
+
+  html += chat ? `<div class="chat">${chat}</div>` : '<div class="empty">No transcript available.</div>';
+  document.getElementById('tab-transcript').innerHTML = html;
+
+  const toggle = document.getElementById('lang-toggle');
+  if(toggle) toggle.addEventListener('click',()=>renderTranscript(data, !showOriginal));
+}
+
+/* ── Analytics ── */
+function bandTile(count, label, cls){
+  return `<div class="an-band"><div class="an-band-count ${cls}">${count}</div><div class="an-band-label">${label}</div></div>`;
+}
+
+function renderAnalytics(a){
+  const sb = a.score_bands;
+  const bandsHtml = bandTile(sb.bands.strong.count, 'Strong', 'c-g')
+    + bandTile(sb.bands.needs_improvement.count, 'Needs Improvement', 'c-y')
+    + bandTile(sb.bands.at_risk.count, 'At Risk', 'c-r');
+  const flagsHtml = `<div class="an-flags">
+    <span>Critical: <b>${sb.critical.count}</b></span>
+    <span>Speaker ID unreliable: <b>${sb.unreliable.count}</b></span>
+  </div>`;
+
+  const dimRows = Object.entries(DIMS).map(([key,label])=>{
+    const d = a.failure_profile.dimensions[key];
+    if(!d || d.avg_score===null){
+      return `<div class="an-dim-row"><div class="an-dim-hdr"><span class="an-dim-name">${h(label)}</span><span class="an-dim-score c-dim">N/A</span></div></div>`;
+    }
+    const cls = scoreColor(d.avg_score, 10);
+    const w = pct(d.avg_score, 10);
+    const weakBadge = d.weak_count>0 ? `<span class="an-weak-badge">${d.weak_count} weak</span>` : '';
+    return `<div class="an-dim-row">
+      <div class="an-dim-hdr"><span class="an-dim-name">${h(label)}${weakBadge}</span><span class="an-dim-score ${cls.text}">${d.avg_score}/10</span></div>
+      <div class="an-dim-bar"><div class="an-dim-bar-fill ${cls.fill}" style="width:${w}%"></div></div>
+    </div>`;
+  }).join('');
+
+  const fe = a.fact_error_aggregation;
+  const vc = fe.verdict_counts;
+  const segHtml = `<div class="an-verdict-bar">
+    ${vc.correct?`<div class="an-verdict-seg f-g" style="flex:${vc.correct} 0 0"></div>`:''}
+    ${vc.incorrect?`<div class="an-verdict-seg f-r" style="flex:${vc.incorrect} 0 0"></div>`:''}
+    ${vc.not_found?`<div class="an-verdict-seg f-dim" style="flex:${vc.not_found} 0 0"></div>`:''}
+  </div>`;
+  const legendHtml = `<div class="an-legend">
+    <span><span class="an-legend-dot" style="background:var(--green)"></span>Correct (${vc.correct})</span>
+    <span><span class="an-legend-dot" style="background:var(--red)"></span>Incorrect (${vc.incorrect})</span>
+    <span><span class="an-legend-dot" style="background:var(--dim)"></span>Not Found (${vc.not_found})</span>
+  </div>`;
+  const factListHtml = fe.top_mismatched_facts.length
+    ? fe.top_mismatched_facts.map(m=>`<div class="an-fact-item"><span>${h(m.kb_fact)}</span><span class="c-r">&times;${m.count}</span></div>`).join('')
+    : `<div class="an-empty-sm">No fact-check mismatches yet.</div>`;
+  const mismatchPct = fe.mismatch_rate!==null ? Math.round(fe.mismatch_rate*100) : 0;
+
+  const rf = a.resolution_funnel;
+  const funnelHtml = bandTile(rf.stages.resolved.count, 'Resolved', 'c-g')
+    + bandTile(rf.stages.partially_resolved.count, 'Partially Resolved', 'c-y')
+    + bandTile(rf.stages.unresolved.count, 'Unresolved', 'c-r');
+
+  document.getElementById('analytics-section').innerHTML = `
+    <div class="analytics-grid">
+      <div class="an-card">
+        <div class="an-card-title">Score Distribution</div>
+        <div class="an-bands">${bandsHtml}</div>
+        ${flagsHtml}
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Dimension Health</div>
+        ${dimRows}
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Fact-Check Accuracy</div>
+        <div style="font-size:12px;color:var(--muted)">${fe.total_claims_checked} claims checked &middot; ${mismatchPct}% mismatch rate</div>
+        ${segHtml}
+        ${legendHtml}
+        <div style="margin-top:12px">${factListHtml}</div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-title">Resolution Funnel</div>
+        <div class="an-bands">${funnelHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Tabs ── */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+tab));
+  });
+});
+
+/* ── Close handlers ── */
+document.getElementById('close-btn').addEventListener('click',closeDetail);
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeDetail()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
+
+/* ── Processing jobs ── */
+let lastActiveCount = 0;
+let staleJobIds = null;   // jobs already finished when the page opened — never shown
+
+function renderJobs(jobs){
+  const banner = document.getElementById('proc-banner');
+  const active = jobs.filter(j=>j.status==='queued'||j.status==='processing');
+  // keep failures visible for a bit so the user sees what went wrong
+  const recentFailed = jobs.filter(j=>j.status==='failed').slice(0,3);
+  const shown = active.concat(active.length?recentFailed:[]);
+
+  if(!shown.length){
+    banner.style.display='none';
+    return;
+  }
+  const rows = shown.map(j=>{
+    let st = '';
+    if(j.status==='queued') st = '<span class="proc-status st-queued">Queued</span>';
+    if(j.status==='processing') st = '<span class="proc-status st-processing"><span class="mini-spin"></span>Processing…</span>';
+    if(j.status==='failed') st = `<span class="proc-status st-failed">✕ ${h((j.error||'Failed').slice(0,60))}</span>`;
+    return `<div class="proc-row"><span class="proc-name">${h(j.filename)}</span>${st}</div>`;
+  }).join('');
+  banner.innerHTML = `<div class="proc-banner">
+    <div class="proc-title"><span class="mini-spin"></span>Processing ${active.length} call${active.length!==1?'s':''} — results appear automatically</div>
+    ${rows}
+  </div>`;
+  banner.style.display='block';
+}
+
+function pollJobs(){
+  fetch('/jobs')
+    .then(r=>r.ok?r.json():{jobs:[]})
+    .then(d=>{
+      let jobs = d.jobs||[];
+      if(staleJobIds === null){
+        staleJobIds = new Set(jobs.filter(j=>j.status==='done'||j.status==='failed').map(j=>j.id));
+      }
+      jobs = jobs.filter(j=>!staleJobIds.has(j.id));
+      const activeCount = jobs.filter(j=>j.status==='queued'||j.status==='processing').length;
+      renderJobs(jobs);
+      if(activeCount < lastActiveCount){
+        loadResults();       // something finished — pull in the new call(s)
+        loadAnalytics();
+      }
+      lastActiveCount = activeCount;
+    })
+    .catch(()=>{});
+}
+
+/* ── Init ── */
+function loadResults(){
+  fetch('/results')
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(d=>{renderStats(d.calls);renderTable(d.calls)})
+    .catch(err=>{
+      document.getElementById('tbl-body').innerHTML=
+        `<tr><td colspan="6"><div class="empty">Error loading results: ${h(err.message)}</div></td></tr>`;
+    });
+}
+
+function loadAnalytics(){
+  fetch('/analytics')
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(renderAnalytics)
+    .catch(err=>{
+      document.getElementById('analytics-section').innerHTML=
+        `<div class="empty">Error loading analytics: ${h(err.message)}</div>`;
+    });
+}
+
+loadResults();
+loadAnalytics();
+pollJobs();
+setInterval(pollJobs, 4000);
+
+if(location.hash.length>1) openDetail(decodeURIComponent(location.hash.slice(1)));
+</script>
+</body>
+</html>
