@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from app.pipeline import run_pipeline
 from app import jobs
 from app.score import score_transcript
-from app.rag import ingest_files, clear_knowledge_base, kb_chunk_count
+from app.rag import ingest_files, kb_chunk_count
 from app.analytics import compute_analytics
 from app import repository
 from pydantic import BaseModel
@@ -184,17 +184,18 @@ async def kb_upload(files: list[UploadFile] = File(...), mode: str = Form("appen
             raise HTTPException(status_code=400, detail=f"Unsupported KB format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_KB_EXTS))}")
         payload.append((f.filename, await f.read()))
 
-    ingested = ingest_files(payload, mode=mode)
+    ingested = ingest_files(payload)
     repository.save_kb_documents(ingested, mode=mode)
 
     return {
-        "ingested": ingested,
+        # Strip content — the client only needs the per-file counts, and
+        # echoing it back would put the whole KB in the response body.
+        "ingested": [{"filename": d["filename"], "chunk_count": d["chunk_count"]} for d in ingested],
         "mode": mode,
         "total_chunks": kb_chunk_count(),
     }
 
 @app.delete("/kb")
 async def kb_clear():
-    clear_knowledge_base()
     repository.clear_kb_documents()
     return {"cleared": True, "total_chunks": 0}

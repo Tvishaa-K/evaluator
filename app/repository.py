@@ -130,9 +130,9 @@ def list_kb_documents() -> list[dict]:
 
 
 def save_kb_documents(ingested: list[dict], mode: str = "append") -> None:
-    """Records ingested files. mode="replace" wipes the list first; a
-    re-uploaded filename always replaces its previous entry (mirroring
-    how ingest_files replaces that file's chunks in Chroma)."""
+    """Sole writer for the knowledge base — stores both the metadata and the
+    extracted text. mode="replace" wipes the list first; a re-uploaded filename
+    always replaces its previous entry."""
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     with SessionLocal() as session:
         if mode == "replace":
@@ -141,8 +141,25 @@ def save_kb_documents(ingested: list[dict], mode: str = "append") -> None:
             names = [d["filename"] for d in ingested]
             session.query(KbDocument).filter(KbDocument.filename.in_(names)).delete()
         for d in ingested:
-            session.add(KbDocument(filename=d["filename"], uploaded_at=now, chunk_count=d["chunk_count"]))
+            session.add(KbDocument(
+                filename=d["filename"],
+                uploaded_at=now,
+                chunk_count=d["chunk_count"],
+                content=d.get("content", ""),
+            ))
         session.commit()
+
+
+def kb_total_chunks() -> int:
+    with SessionLocal() as session:
+        return sum(c for (c,) in session.query(KbDocument.chunk_count).all())
+
+
+def load_kb_content() -> str:
+    """All knowledge base text, concatenated in upload order."""
+    with SessionLocal() as session:
+        rows = session.query(KbDocument.content).order_by(KbDocument.id).all()
+        return "\n\n".join(c for (c,) in rows if c)
 
 
 def clear_kb_documents() -> None:

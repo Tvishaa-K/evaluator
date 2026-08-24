@@ -1,84 +1,89 @@
-# Deploying to Render
+# Deploying to Render (free tier)
 
-The repo is deploy-ready. Everything below happens in the Render dashboard,
-because creating an account and attaching a payment method can't be automated.
+The app is stateless — no persistent disk — so it runs on Render's free
+instance type. Postgres lives on Neon rather than Render, because Render's free
+database is deleted 30 days after creation.
 
-## Prerequisites
+Everything below happens in a browser, because creating accounts can't be
+automated.
 
-- A Render account (https://dashboard.render.com/register) with a payment method.
-  A persistent disk requires a paid instance, and the disk is what makes the
-  knowledge base survive restarts.
-- The repo: https://github.com/Tvishaa-K/evaluator (private)
+## 1. Create the database (Neon)
 
-## 1. Create the Blueprint
+https://neon.com → new project → copy the connection string.
 
-Dashboard → **New** → **Blueprint** → connect the `evaluator` repo.
+Neon's free plan gives 0.5 GB storage and 100 CU-hours/month, and does not
+expire. It scales to zero after 5 minutes idle; the `pool_pre_ping` in
+`app/db.py` handles the reconnect, so the only cost is a brief wake on the
+first query.
 
-Render reads `render.yaml` and provisions three things:
+Paste the URL as-is. `_normalize_db_url()` in `app/db.py` rewrites the scheme to
+`postgresql+psycopg://` and leaves Neon's required `?sslmode=require` intact.
 
-| Resource | Config | Why |
-|---|---|---|
-| Web service `evaluator` | Docker, `starter`, Singapore | Free instances can't mount a disk and sleep when idle, which would kill in-flight pipeline jobs |
-| Disk `chroma` | 1 GB at `/data` | Holds the Chroma vector store. Disks can grow but never shrink |
-| Postgres `evaluator-db` | `basic-256mb`, Singapore | Must match the web service region for the internal URL to resolve |
+## 2. Create the web service (Render)
 
-## 2. Fill in the secrets
+Dashboard → **New** → **Blueprint** → connect the `evaluator` repo. Render reads
+`render.yaml`: a free Docker web service in Singapore, health check at
+`/healthz`, pre-deploy `alembic upgrade head`.
 
-`render.yaml` marks four vars `sync: false`, meaning Render prompts for them
-instead of reading them from the repo. Set all four:
+Set the five `sync: false` vars:
 
 | Var | Value |
 |---|---|
+| `DATABASE_URL` | the Neon URL from step 1 |
 | `DEEPGRAM_API_KEY` | from your local `.env` |
 | `SARVAM_API_KEY` | from your local `.env` |
 | `BASIC_AUTH_USER` | pick one |
 | `BASIC_AUTH_PASS` | pick a strong one |
 
-`DATABASE_URL`, `CHROMA_PATH`, and `PIPELINE_WORKERS` are wired automatically.
+`GROQ_API_KEY` and `HF_TOKEN` are dead — Groq and pyannote were removed from the
+pipeline. Don't carry them over.
 
-Do **not** copy `GROQ_API_KEY` or `HF_TOKEN` — Groq and pyannote were removed
-from the pipeline and neither is read anymore.
+## 3. Seed the knowledge base
 
-## 3. First deploy
+The database starts empty, so fact-checking is skipped until you load it.
+Visit `/kb-manager`, authenticate, upload `kb/loan_terms.md`. Expect **9 chunks**.
 
-Render will, in order: build the Dockerfile, run `alembic upgrade head` as the
-pre-deploy command, then start uvicorn.
+Until then, processed calls return a `no_knowledge_base` warning.
 
-Watch the build log for the ONNX warm-up step. It downloads ~79 MB and takes
-around 3 minutes **once, at build time**. If you ever see that download in the
-*runtime* log instead, the `HOME` pinning in the Dockerfile has broken and every
-deploy will pay that cost on its first knowledge-base operation.
+## 4. Verify
 
-## 4. Seed the knowledge base
+1. `GET /healthz` → `{"status":"ok"}` with no credentials. This is what Render's
+   health checker hits; it is deliberately exempt from basic auth.
+2. `GET /` with no credentials → `401`. With credentials → the dashboard.
+3. Upload a call from `calls/` at `/upload`. Budget 60-120s; Sarvam is slow. The
+   dashboard polls `/jobs` every 4s and refreshes on completion.
+4. Leave it 15+ minutes, then load it again. The first request takes ~1 minute
+   (cold start) and the KB and call log must both still be there. That is the
+   proof nothing was relying on local disk.
 
-The disk starts empty, so fact-checking is skipped until you load it.
+## How fact-checking works
 
-Visit `/kb-manager` on your Render URL, authenticate, and upload
-`kb/loan_terms.md`. Expect **9 chunks**. Until this is done, processed calls come
-back with a `no_knowledge_base` warning.
+There is no vector database. The entire knowledge base is passed into each
+fact-check prompt (`app/rag.py: fact_check_claims`).
 
-## 5. Verify
+At 2.3 KB / ~573 tokens this is cheaper, simpler, and more accurate than the
+ChromaDB top-2 retrieval it replaced — retrieval was scoring correct claims as
+`not_found` and even `incorrect` when the relevant fact lived under a heading
+that similarity search didn't surface.
 
-1. `GET /healthz` → `{"status":"ok"}`, no credentials needed. This is what
-   Render's health checker hits; it is deliberately exempt from basic auth.
-2. `GET /` without credentials → `401`. With credentials → the dashboard.
-3. Upload one call from `calls/` at `/upload`. Budget 60-120s — Sarvam is slow.
-   The dashboard polls `/jobs` every 4s and refreshes when it completes.
-4. Trigger a manual redeploy and confirm the KB chunk count and call log both
-   survive. That is the whole point of the disk.
+If the KB grows past `KB_PROMPT_CHAR_LIMIT` (40,000 chars), `run_fact_check`
+truncates and returns a `kb_too_large` warning. That is the signal to reintroduce
+real retrieval — and because the app is now stateless, you can point it at a
+hosted vector store without going back to a persistent disk.
 
 ## Operational notes
 
-- **One instance only.** The disk enforces it; Render caps a disk-attached
-  service at a single running instance.
-- **Deploys are not zero-downtime.** Render stops the old instance before
-  starting the new one, to avoid two writers on one disk.
-- **In-flight jobs die on deploy.** `repository.fail_stale_jobs()` runs at
-  startup and marks orphans failed, so nothing hangs — but those calls need
-  re-uploading.
-- **`POST /process` will time out.** It runs the full pipeline inline, past
-  Render's proxy idle timeout. The UI never calls it; it uses `/process/batch`,
-  which returns immediately and processes in the background. Don't build on
-  `/process`.
-- **Scaling up means removing the disk.** Move Chroma to a hosted vector store
-  first, then the service becomes stateless and can run multiple instances.
+- **Cold starts.** Free services spin down after 15 min idle; waking takes about
+  a minute. Neon adds a short wake on top.
+- **750 instance-hours/month** covers one service running continuously (744 h).
+  Exhausting it suspends free services until the next month.
+- **Jobs can die on spin-down.** The dashboard polls `/jobs` every 4s, which keeps
+  the service warm while the tab is open. Close the tab mid-run and the job may
+  be killed. `repository.fail_stale_jobs()` marks orphans failed at next startup,
+  so nothing hangs, but the call needs re-uploading.
+- **`POST /process` will time out.** It runs the pipeline inline, past Render's
+  proxy idle timeout. The UI uses `/process/batch`, which returns immediately.
+  Don't build on `/process`.
+- **Stored results keep their original verdicts.** Calls processed before the
+  retrieval change still carry the old fact-check output. Re-upload the audio to
+  rescore them.

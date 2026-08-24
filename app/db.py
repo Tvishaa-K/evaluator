@@ -82,6 +82,9 @@ class KbDocument(Base):
     filename: Mapped[str] = mapped_column(String)
     uploaded_at: Mapped[str] = mapped_column(String)
     chunk_count: Mapped[int] = mapped_column()
+    # Extracted text. Fact-checking passes the whole KB into the prompt, so
+    # Postgres is the only store — there is no separate vector DB to drift from.
+    content: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class CallSegment(Base):

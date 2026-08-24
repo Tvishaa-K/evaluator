@@ -1,29 +1,20 @@
-# Render Blueprint. Optional — the dashboard can do all of this — but keeping it
-# here means the infra is version-controlled alongside the app.
-# plan/region/database-plan values verified against Render's blueprint spec.
+# Render Blueprint. The app is stateless — no disk — so it runs on the free
+# instance type. Postgres lives on Neon because Render's free database is
+# deleted 30 days after creation.
 services:
   - type: web
     name: evaluator
     runtime: docker
-    plan: starter          # free instances can't mount a disk and sleep when idle,
-                           # which would kill in-flight pipeline jobs
-    region: singapore      # must match the database region for the internal URL
+    plan: free             # spins down after 15 min idle, ~1 min cold start
+    region: singapore
     healthCheckPath: /healthz   # must be unauthenticated; see basic_auth in app/main.py
     preDeployCommand: alembic upgrade head
-    disk:
-      name: chroma
-      mountPath: /data
-      sizeGB: 1            # chroma_db is ~1MB today; disks can grow but never shrink
     envVars:
-      - key: CHROMA_PATH
-        value: /data/chroma_db
       - key: PIPELINE_WORKERS
         value: "2"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: evaluator-db
-          property: connectionString   # app/db.py normalizes the scheme to +psycopg
-      # Set these in the dashboard; never commit them.
+      # Set all of these in the dashboard; never commit them.
+      - key: DATABASE_URL      # Neon URL; app/db.py normalizes the scheme to +psycopg
+        sync: false
       - key: DEEPGRAM_API_KEY
         sync: false
       - key: SARVAM_API_KEY
@@ -32,8 +23,3 @@ services:
         sync: false
       - key: BASIC_AUTH_PASS
         sync: false
-
-databases:
-  - name: evaluator-db
-    plan: basic-256mb
-    region: singapore

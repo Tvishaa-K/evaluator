@@ -1,25 +1,21 @@
 import io
 import os
 import json
-import chromadb
 from json_repair import repair_json
 from pypdf import PdfReader
 from dotenv import load_dotenv
 
 from app.llm import chat
+from app import repository
 
 load_dotenv()
 
-# Persistent ChromaDB. Defaults to ./chroma_db for local dev; deployments
-# point CHROMA_PATH at a mounted disk so the KB survives restarts.
-chroma_client = chromadb.PersistentClient(path=os.getenv("CHROMA_PATH", "chroma_db"))
-
-COLLECTION_NAME = "loan_kb"
 PARAGRAPH_CHUNK_CHARS = 800
 
-
-def get_collection():
-    return chroma_client.get_or_create_collection(name=COLLECTION_NAME)
+# Fact-checking passes the entire knowledge base into every prompt rather than
+# retrieving top-k chunks. Past this size that stops being viable on cost and
+# context, and the KB needs real retrieval again — see the kb_too_large warning.
+KB_PROMPT_CHAR_LIMIT = 40_000
 
 
 def _chunk_by_headers(text: str) -> list:
@@ -67,46 +63,30 @@ def _extract_chunks(filename: str, file_bytes: bytes) -> list:
     return _chunk_by_paragraphs(text)
 
 
-def ingest_files(files: list, mode: str = "append") -> list:
-    """Ingests (filename, bytes) pairs into the KB collection.
-    mode="replace" drops the whole collection first. Returns per-file
-    chunk counts: [{"filename": ..., "chunk_count": ...}, ...]."""
-    if mode == "replace":
-        try:
-            chroma_client.delete_collection(COLLECTION_NAME)
-        except Exception:
-            pass
+def ingest_files(files: list) -> list:
+    """Extracts text from (filename, bytes) pairs. Pure — persistence is
+    repository.save_kb_documents()'s job, so there is exactly one writer.
+    Returns [{"filename": ..., "chunk_count": ..., "content": ...}, ...].
 
-    collection = get_collection()
+    chunk_count still reflects document structure and drives the KB manager UI;
+    it is no longer a retrieval unit."""
     ingested = []
-
     for filename, file_bytes in files:
         chunks = _extract_chunks(filename, file_bytes)
-        if not chunks:
-            ingested.append({"filename": filename, "chunk_count": 0})
-            continue
-
-        # Re-uploading a file replaces its previous chunks
-        collection.delete(where={"source": filename})
-        collection.upsert(
-            ids=[f"{filename}:{i}" for i in range(len(chunks))],
-            documents=chunks,
-            metadatas=[{"source": filename} for _ in chunks],
-        )
-        ingested.append({"filename": filename, "chunk_count": len(chunks)})
-
+        ingested.append({
+            "filename": filename,
+            "chunk_count": len(chunks),
+            "content": "\n\n".join(chunks),
+        })
     return ingested
 
 
-def clear_knowledge_base():
-    try:
-        chroma_client.delete_collection(COLLECTION_NAME)
-    except Exception:
-        pass
-
-
 def kb_chunk_count() -> int:
-    return get_collection().count()
+    return repository.kb_total_chunks()
+
+
+def load_knowledge_base() -> str:
+    return repository.load_kb_content()
 
 
 def extract_agent_claims(transcript: str) -> list:
@@ -126,18 +106,21 @@ If no factual claims, return {{"claims": []}}"""
     return parsed.get("claims", [])
 
 
-def fact_check_claims(claims: list) -> list:
-    """Checks each agent claim against the knowledge base."""
-    collection = get_collection()
+def fact_check_claims(claims: list, kb_text: str | None = None) -> list:
+    """Checks each agent claim against the full knowledge base.
+
+    Passing the whole KB avoids the retrieval misses top-2 search produced: a
+    correct claim about the Rs. 500 bounce charge scored not_found because
+    similarity surfaced the "EMI Rules" and "Late Payment" sections instead of
+    "Charges Summary", where the fee is actually listed."""
+    if kb_text is None:
+        kb_text = load_knowledge_base()
+
     results = []
 
     for claim in claims:
-        # Retrieve most relevant KB chunks
-        query_result = collection.query(query_texts=[claim], n_results=2)
-        kb_context = "\n\n".join(query_result["documents"][0])
-
         prompt = f"""KNOWLEDGE BASE:
-{kb_context}
+{kb_text}
 
 AGENT CLAIM: "{claim}"
 
@@ -153,20 +136,35 @@ Does the knowledge base support this claim? Respond with JSON only:
 
 
 def run_fact_check(transcript: str) -> dict:
-    """Full fact-check: extract claims, verify each, summarize."""
-    if kb_chunk_count() == 0:
+    """Full fact-check: extract claims, verify each against the whole KB,
+    summarize. The KB is loaded once and reused across claims."""
+    kb_text = load_knowledge_base()
+    if not kb_text.strip():
         return {"claims_checked": 0, "mismatches": [], "results": [], "warning": "no_knowledge_base"}
+
+    warning = None
+    if len(kb_text) > KB_PROMPT_CHAR_LIMIT:
+        # Fail loudly rather than silently degrade: the KB has outgrown
+        # prompt-stuffing and needs a real vector store again.
+        kb_text = kb_text[:KB_PROMPT_CHAR_LIMIT]
+        warning = "kb_too_large"
 
     claims = extract_agent_claims(transcript)
 
     if not claims:
-        return {"claims_checked": 0, "mismatches": [], "results": []}
+        result = {"claims_checked": 0, "mismatches": [], "results": []}
+        if warning:
+            result["warning"] = warning
+        return result
 
-    results = fact_check_claims(claims)
+    results = fact_check_claims(claims, kb_text)
     mismatches = [r for r in results if r["verdict"] == "incorrect"]
 
-    return {
+    result = {
         "claims_checked": len(claims),
         "mismatches": mismatches,
         "results": results
     }
+    if warning:
+        result["warning"] = warning
+    return result

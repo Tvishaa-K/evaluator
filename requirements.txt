@@ -6,7 +6,6 @@ pydantic==2.13.4
 sqlalchemy==2.0.51
 alembic==1.18.4
 psycopg[binary]==3.3.4
-chromadb==1.5.9
 json-repair==0.61.1
 deepgram-sdk==3.11.0
 sarvamai==0.1.28
