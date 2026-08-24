@@ -33,6 +33,11 @@ async def basic_auth(request: Request, call_next):
     No-ops when the credentials are unset so local dev and batch.py are
     unaffected. Without this, anyone with the URL can clear the knowledge base,
     delete calls, or burn Deepgram/Sarvam credits via /process."""
+    # Render's health checker can't send credentials, so a gated /healthz
+    # would 401 and get the service marked unhealthy.
+    if request.url.path == "/healthz":
+        return await call_next(request)
+
     if not (BASIC_AUTH_USER and BASIC_AUTH_PASS):
         return await call_next(request)
 
@@ -60,6 +65,13 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.on_event("startup")
 async def cleanup_stale_jobs():
     repository.fail_stale_jobs()
+
+@app.get("/healthz")
+async def healthz():
+    """Liveness only — deliberately does not touch Postgres, so a transient DB
+    blip doesn't trigger a restart loop."""
+    return {"status": "ok"}
+
 
 @app.get("/")
 async def dashboard():

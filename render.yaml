@@ -1,6 +1,6 @@
 # Render Blueprint. Optional — the dashboard can do all of this — but keeping it
 # here means the infra is version-controlled alongside the app.
-# Verify `plan` and `region` values against current Render offerings before applying.
+# plan/region/database-plan values verified against Render's blueprint spec.
 services:
   - type: web
     name: evaluator
@@ -8,7 +8,7 @@ services:
     plan: starter          # free instances can't mount a disk and sleep when idle,
                            # which would kill in-flight pipeline jobs
     region: singapore      # must match the database region for the internal URL
-    healthCheckPath: /
+    healthCheckPath: /healthz   # must be unauthenticated; see basic_auth in app/main.py
     preDeployCommand: alembic upgrade head
     disk:
       name: chroma
