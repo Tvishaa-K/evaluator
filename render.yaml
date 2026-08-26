@@ -8,7 +8,8 @@ services:
     plan: free             # spins down after 15 min idle, ~1 min cold start
     region: singapore
     healthCheckPath: /healthz   # must be unauthenticated; see basic_auth in app/main.py
-    preDeployCommand: alembic upgrade head
+    # No preDeployCommand: unsupported on the free instance type. The Dockerfile
+    # CMD runs `alembic upgrade head` before starting uvicorn instead.
     envVars:
       - key: PIPELINE_WORKERS
         value: "2"

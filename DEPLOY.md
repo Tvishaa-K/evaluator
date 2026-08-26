@@ -23,7 +23,12 @@ Paste the URL as-is. `_normalize_db_url()` in `app/db.py` rewrites the scheme to
 
 Dashboard → **New** → **Blueprint** → connect the `evaluator` repo. Render reads
 `render.yaml`: a free Docker web service in Singapore, health check at
-`/healthz`, pre-deploy `alembic upgrade head`.
+`/healthz`.
+
+Migrations are not a Render pre-deploy step — the free instance type rejects
+`preDeployCommand`. The Dockerfile's `CMD` runs `alembic upgrade head` before
+starting uvicorn instead, which is safe under `--workers 1` and a no-op once the
+schema is current.
 
 Set the five `sync: false` vars:
 
