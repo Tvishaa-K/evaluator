@@ -18,7 +18,11 @@ def build_prompt(transcript: str, dead_air_seconds: float = 0.0, fact_check: dic
     kb_mismatches = fact_check.get("mismatches", [])
 
     if claims_checked == 0:
-        kb_section = "No factual claims were made by the agent to check. Score dimension 5 as null."
+        # Spelled out as the full object: "score it as null" gets read as
+        # "fact_checking": null, which is not the shape the parser wants.
+        kb_section = ('No factual claims were made by the agent to check. For fact_checking '
+                      'return {"score": null, "reasoning": "<why>"} — the object, with a null '
+                      'score inside it. Do not set fact_checking itself to null.')
     elif kb_mismatches:
         kb_section = f"Knowledge base mismatches:\n{json.dumps(kb_mismatches, indent=2)}"
     else:
@@ -91,6 +95,18 @@ def score_transcript(transcript: str, dead_air_seconds: float = 0.0, fact_check:
                 critical_failure = val
             elif key == "summary":
                 summary = val
+
+    # "Score dimension 5 as null" gets taken literally: the model emits
+    # "fact_checking": null rather than {"score": null, ...}. A bare number
+    # instead of the dict happens too. Normalize both into the dict shape so
+    # everything downstream can treat every dimension the same way.
+    for key, dim in scores.items():
+        if isinstance(dim, dict):
+            continue
+        scores[key] = {
+            "score": dim if isinstance(dim, (int, float)) and not isinstance(dim, bool) else None,
+            "reasoning": "",
+        }
 
     # Or nested one level too deep, inside an individual dimension's dict
     for dim in scores.values():
